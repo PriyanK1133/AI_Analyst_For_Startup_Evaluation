@@ -8,7 +8,8 @@ Investors face a deluge of unstructured startup data—pitch decks, call transcr
 
 ## ✨ Core Capabilities
 
-*   **📄 Ingest & Structure**: Process various documents (PDFs, TXT files) to extract and structure key deal information into a consistent format.
+*   **📄 Ingest & Structure**: Process various documents (PDFs, TXT files) via the `ingestion-service` to extract and structure key deal information into a consistent format.
+*   **💾 Persist**: The `deal-management-service` saves, retrieves, and manages structured startup data in a Firestore database.
 *   **📊 Benchmark**: Compare a startup's key metrics (Valuation, Revenue, Hiring Velocity) against industry peers from a BigQuery dataset.
 *   **❗ Risk Analysis**: Automatically identify and flag potential red flags, such as missing metrics, high burn rates, or extreme valuations.
 *   **🧠 Synthesize & Recommend**: Generate a final investment recommendation (`Fund`, `Review`, `Pass`) based on a weighted analysis of the team, product, market, and financials.
@@ -18,11 +19,10 @@ Investors face a deluge of unstructured startup data—pitch decks, call transcr
 This platform uses a modular **microservice architecture**, where each core function is an independent, container-ready service. This design makes the platform scalable, maintainable, and resilient.
 
 1.  **Frontend Service**: A vanilla HTML/CSS/JS single-page application that serves as the user interface for uploading documents and viewing analysis results.
-2.  **Deal Management Service**: A FastAPI service responsible for CRUD operations on startup data, using Google Firestore as its database.
-3.  **Benchmarking Service**: A FastAPI service that queries a BigQuery database for peer data and uses Gemini to generate comparative analysis and identify risks.
-4.  **Synthesis Service**: A FastAPI service that takes structured data and investor-defined weights to generate a final, AI-powered investment recommendation.
-
-*The `ingestion-service` appears to have been consolidated into the `deal-management-service`, which now handles file ingestion directly.*
+2.  **Ingestion Service**: A FastAPI service that accepts file uploads, uses Gemini to extract structured data, and then calls the Deal Management Service to save the results.
+3.  **Deal Management Service**: A FastAPI service responsible for CRUD operations on startup data, using Google Firestore as its database.
+4.  **Benchmarking Service**: A FastAPI service that queries a BigQuery database for peer data and uses Gemini to generate comparative analysis and identify risks.
+5.  **Synthesis Service**: A FastAPI service that takes structured data and investor-defined weights to generate a final, AI-powered investment recommendation.
 
 🛠️ Technology Stack
 | Component | Technology | Purpose |
@@ -71,11 +71,11 @@ gcloud config set project YOUR_GOOGLE_CLOUD_PROJECT_ID
 
 Each service has its own dependencies. You will need to open a separate terminal for each service you intend to run.
 
-For each service directory (`deal-management-service`, `benchmarking-service`, `synthesis-service`):
+For each service directory (`ingestion-service`, `deal-management-service`, `benchmarking-service`, `synthesis-service`):
 
 ```bash
-# Navigate to the service directory
-cd services/deal-management-service
+# Navigate to a service directory (e.g., ingestion-service)
+cd services/ingestion-service
 
 # Create a virtual environment (recommended)
 python -m venv .venv
@@ -88,34 +88,43 @@ pip install -r requirements.txt
 pip install -e ../../core-library
 ```
 
-> **Note**: Repeat the installation process for `benchmarking-service` and `synthesis-service` in their respective terminals.
+> **Note**: Repeat the installation process for `deal-management-service`, `benchmarking-service`, and `synthesis-service` in their respective terminals.
 
 ## ▶️ How to Run the Project
 
 Each microservice and the frontend must be run in its own terminal window.
 
-#### 1. Run the Deal Management Service
+#### 1. Run the Ingestion Service (Port 8000)
+
+This is the main entry point for the frontend.
 
 ```bash
-# In the services/deal-management-service directory
+# In the services/ingestion-service directory
 uvicorn main:app --reload --port 8000
 ```
 
-#### 2. Run the Benchmarking Service
+#### 2. Run the Deal Management Service (Port 8001)
+
+```bash
+# In the services/deal-management-service directory
+uvicorn main:app --reload --port 8001
+```
+
+#### 3. Run the Benchmarking Service (Port 8002)
 
 ```bash
 # In the services/benchmarking-service directory
 uvicorn main:app --reload --port 8002
 ```
 
-#### 3. Run the Synthesis Service
+#### 4. Run the Synthesis Service (Port 8003)
 
 ```bash
 # In the services/synthesis-service directory
 uvicorn main:app --reload --port 8003
 ```
 
-#### 4. Run the Frontend
+#### 5. Run the Frontend (Port 8080)
 
 The simplest way to serve the frontend is with Python's built-in HTTP server.
 
@@ -130,17 +139,18 @@ Once all services are running, open your browser and navigate to **`http://local
 
 Each FastAPI service includes auto-generated interactive API documentation (Swagger UI).
 
-1.  Run the service you wish to test (e.g., `deal-management-service`).
+1.  Run the service you wish to test (e.g., `ingestion-service`).
 2.  Open your web browser to the service's `/docs` endpoint (e.g., **`http://127.0.0.1:8000/docs`**).
 3.  Use the interactive interface to send requests and view live responses.
 
 📁 Project Structure/ai-analyst-platform/
 |
 |--- services/                  # Each microservice is a separate application
-|    |--- deal-management-service/ # Ingests docs, extracts data, manages deals in Firestore
-|    |--- benchmarking-service/    # Compares startup to peers from BigQuery
-|    |--- synthesis-service/       # Generates final scores and recommendations
-|    `--- frontend-services/       # The user interface (HTML, CSS, JS)
+|    |--- ingestion-service/       # Handles document processing and data extraction (Port 8000)
+|    |--- deal-management-service/ # Manages deals in Firestore (Port 8001)
+|    |--- benchmarking-service/    # Compares startup to peers from BigQuery (Port 8002)
+|    |--- synthesis-service/       # Generates final scores and recommendations (Port 8003)
+|    `--- frontend-services/       # The user interface (HTML, CSS, JS) (Port 8080)
 |
 |--- core-library/              # A shared Python library for all backend services
 |    |--- core/
